@@ -1,9 +1,9 @@
 # Data augmentation parameters
 ROT_ANGLE = 5
+IMG_SIZE = 180
 W_SHIFT_RANGE = 0.05
 H_SHIFT_RANGE = 0.05
-FILL_MODE = "nearest"
-BRIGHTNESS_RANGE = [0.95, 1.05]
+BRIGHTNESS_RANGE = 0.2
 VAL_SPLIT = 0.1  # ratio that divide whole data to train/valid data.
 
 # Learning Rate Finder parameters
