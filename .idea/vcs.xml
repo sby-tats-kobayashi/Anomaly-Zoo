@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/CAE" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/MVTec-Anomaly-Detection" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/PlotNeuralNet" vcs="Git" />
   </component>
 </project>

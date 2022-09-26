@@ -22,9 +22,9 @@ Constructor:
 
 
 class Preprocessor:
-    def __init__(self, data_dir="../data/mvtec", batch_size=32):
+    def __init__(self, data_dir="../data/mvtec"):
         self.data_dir = data_dir
-        self.batch_size = batch_size
+        self.batch_size = config.BATCH_SIZE
         self.val_split = config.VAL_SPLIT
         self.rot_angle = config.ROT_ANGLE
         self.w_shift = config.W_SHIFT_RANGE
@@ -59,7 +59,7 @@ class Preprocessor:
         fine_size = int((num_train + num_test) * self.val_split)
         test_size = int(num_test * (1 - self.val_split))
 
-        # Create the trai/fine-tuning/test dataset.
+        # Create the train/fine-tuning/test dataset.
         train_ds = list_train_ds.take(train_size)
         fine_ds = list_train_ds.skip(train_size).concatenate(list_test_ds.take(num_test - test_size))
         test_ds = list_test_ds.skip(num_test - test_size)
@@ -68,17 +68,16 @@ class Preprocessor:
         print(f"The number of fine-tuning data: {fine_ds.cardinality().numpy()}")
         print(f"The number of test data: {test_ds.cardinality().numpy()}")
 
-        train_ds = train_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
-        finetune_ds = fine_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
-        test_ds = test_ds.map(process_path, num_parallel_calls=tf.data.AUTOTUNE)
+        return train_ds, fine_ds, test_ds
 
-        return train_ds, finetune_ds, test_ds
+    def get_batch_dataset(self, ds):
+        ds = ds.cache()
+        ds = ds.shuffle(buffer_size=1000)
+        ds = self._convert_path_to_image(ds)
+        ds = ds.batch(self.batch_size)
+        ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+        return ds
 
-    def resize_and_rescale(self, ds):
-        resize_and_rescale = tf.keras.Sequential([
-            layers.Resizing(self.image_size, self.image_size),
-            layers.Rescaling(1./255)
-        ])
     def data_augmentation(self, ds):
         augments = keras.Sequential([
             layers.RandomFlip("horizontal_and_vertical"),
@@ -94,35 +93,51 @@ class Preprocessor:
 
         return ds.prefetch(buffer_size=tf.data.AUTOTUNE)
 
-def get_label(file_path):
-    # Convert the path to a list of path components. (ex. ['.'. 'data', 'mvtec', 'bottle'])
-    parts = tf.strings.split(file_path, os.path.sep)
-    label = int(parts[-2] == 'good')
-    return label
+    def _resize_and_rescale(self, ds):
+        resize_and_rescale = tf.keras.Sequential([
+            layers.Resizing(self.image_size, self.image_size),
+            layers.Rescaling(1./255)
+        ])
+
+        ds = ds.map(lambda x, y: (resize_and_rescale(x), y),
+                    num_parallel_calls=tf.data.AUTOTUNE)
+        return ds
+
+    def _convert_path_to_image(self, ds):
+        # Convert a file path to an image.
+        ds = ds.map(self._process_path, num_parallel_calls=tf.data.AUTOTUNE)
+        ds = self._resize_and_rescale(ds)  # num_parallel_calls=tf.data.AUTOTUNE)
+        return ds
 
 
-def decode_img(img):
-    # Convert the compressed string to a 3D uint8 tensor
-    img = tf.io.decode_png(img, channels=3)
-    return img
+    def _get_label(self, file_path):
+        # Convert the path to a list of path components. (ex. ['.'. 'data', 'mvtec', 'bottle'])
+        parts = tf.strings.split(file_path, os.path.sep)
+        label = int(parts[-2] == 'good')
+        return label
 
-
-def process_path(file_path):
-    label = get_label(file_path)
-    # Load the raw data from the files as a string
-    img = tf.io.read_file(file_path)
-    img = decode_img(img)
-    return img, label
+    def _decode_img(self, img):
+        # Convert the compressed string to a 3D uint8 tensor
+        img = tf.io.decode_png(img, channels=3)
+        return img
+    
+    def _process_path(self, file_path):
+        label = self._get_label(file_path)
+        # Load the raw data from the files as a string
+        img = tf.io.read_file(file_path)
+        img = self._decode_img(img)
+        return img, label
 
 
 
 preprocessor = Preprocessor()
 train_ds, fine_ds, test_ds = preprocessor.get_dataset()
 
-train_ds = preprocessor.resize_and_rescale(train_ds)
-fine_ds = preprocessor.resize_and_rescale(fine_ds)
-test_ds = preprocessor.resize_and_rescale(test_ds)
+train_ds = preprocessor.get_batch_dataset(train_ds)
+fine_ds = preprocessor.get_batch_dataset(fine_ds)
+test_ds = preprocessor.get_batch_dataset(test_ds)
 
-aug_ds = preprocessor.data_augmentation(train_ds)
+train_ds = preprocessor.data_augmentation(train_ds)
 
-
+img, label = next(iter(train_ds))
+print(img[0].shape)
