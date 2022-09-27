@@ -6,7 +6,6 @@ from tensorflow.keras import layers
 from tensorflow import keras
 from typing import Union
 
-
 class IdentifyLayer(layers.Layer):
     def __init__(self):
         super(IdentifyLayer, self).__init__()

@@ -1,15 +1,10 @@
 from tensorflow import keras
-import tensorflow as tf
 from tensorflow.keras.layers import (
     Add,
     ReLU,
-    Conv2D,
     Conv2DTranspose,
-    MaxPooling2D,
     BatchNormalization,
-    Activation,
 )
-from src import config
 
 
 class DecodeBlock(keras.layers.Layer):

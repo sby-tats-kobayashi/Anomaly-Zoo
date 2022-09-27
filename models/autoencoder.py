@@ -1,20 +1,24 @@
 import tensorflow as tf
 import keras
 import pathlib
+import numpy as np
 import os
 import datetime
-import resnetCAE
-import losses
-import metrics
+from models import resnetCAE
+from models import losses
+from models import metrics
 
-from src import config
-from src.preprocessing import Preprocessor
+import config
+from preprocessing import Preprocessor
+
 
 class AutoEncoder:
 
     def __init__(
         self,
         data_dir,
+        train_data,
+        valid_data,
         architecture,
         color_mode,
         loss,
@@ -22,6 +26,8 @@ class AutoEncoder:
         verbose=True
     ):
         self.data_dir = data_dir
+        self.train_data = train_data
+        self.valid_data = valid_data
         self.save_dir = None
         self.log_dir = None
 
@@ -30,18 +36,6 @@ class AutoEncoder:
         self.color_mode = color_mode
         self.loss = loss
         self.batch_size = batch_size
-        val_split = config.VAL_SPLIT
-        
-        # get dataset object
-        preprocessor = Preprocessor(
-            data_dir=self.data_dir,
-            batch_size=self.batch_size,)
-        train_ds, _, _ = preprocessor.get_dataset()
-        train_ds = preprocessor.get_batch_dataset(train_ds)
-        train_ds = preprocessor.data_augmentation(train_ds)
-        num_train_ds = int(len(train_ds) * val_split)
-        self.train_ds = train_ds.take(num_train_ds)
-        self.fine_ds = train_ds.skip(num_train_ds)
 
         # results attributes
         self.hist = None
@@ -116,15 +110,14 @@ class AutoEncoder:
             + "\ntensorboard --logdir={}\n".format(self.log_dir)
         )
         
-        self.history = self.model.fit(
-            x=self.train_ds,
+        self.hist = self.model.fit(
+            x=self.train_data,
             batch_size=self.batch_size,
-            epochs=5,
+            epochs=10,
             verbose=self.verbose,
             callbacks=[tensorboard_cb, early_stopping_cb],
-            validation_data=self.fine_ds
+            validation_data=self.valid_data
         )
-
     def create_save_dir(self):
         # create a directory to save model
         now = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
@@ -145,5 +138,22 @@ class AutoEncoder:
             os.makedirs(log_dir)
         self.log_dir = log_dir
 
-autoencoder = AutoEncoder("../data/mvtec", "resnetCAE", "rgb", "l2")
-autoencoder.fit()
+    def create_model_name(self):
+        epochs_trained = self.get_best_epoch()
+        model_name = self.architecture + f"_b{self.batch_size}_e{epochs_trained}.hdf5"
+        return model_name
+
+    def save(self):
+        # save model
+        save_dir = os.path.join(self.save_dir, self.create_model_name())
+        self.model.save(save_dir)
+
+    def get_history_dict(self):
+        hist_dict = dict((key, self.hist.history[key]) for key in self.hist_keys)
+        return hist_dict
+
+    def get_best_epoch(self):
+        hist_dict = self.get_history_dict()
+        best_epoch = int(np.argmin(np.array(hist_dict["val_loss"])))
+        return best_epoch
+

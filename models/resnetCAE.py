@@ -1,18 +1,9 @@
 from tensorflow import keras
 import tensorflow as tf
-from tensorflow.keras.layers import (
-    Add,
-    ReLU,
-    Conv2D,
-    Conv2DTranspose,
-    MaxPooling2D,
-    BatchNormalization,
-    Activation,
-)
-from resnet.resnet import build_resnet
-from resnet.decoder import Decoder
-from resnet.encoder import Encoder
-from src import config
+from models.resnet.resnet import build_resnet
+from models.resnet.decoder import Decoder
+from models.resnet.encoder import Encoder
+import config
 
 # Preprocessing variables
 RESCALE = 1 / 255
