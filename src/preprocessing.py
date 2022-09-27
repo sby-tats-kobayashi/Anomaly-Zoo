@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 import PIL
 from PIL import Image
-import config
+from src import config
 import matplotlib.pyplot as plt
 
 '''
@@ -22,9 +22,9 @@ Constructor:
 
 
 class Preprocessor:
-    def __init__(self, data_dir="../data/mvtec"):
+    def __init__(self, data_dir, batch_size):
         self.data_dir = data_dir
-        self.batch_size = config.BATCH_SIZE
+        self.batch_size = batch_size
         self.val_split = config.VAL_SPLIT
         self.rot_angle = config.ROT_ANGLE
         self.w_shift = config.W_SHIFT_RANGE
@@ -87,8 +87,13 @@ class Preprocessor:
             layers.RandomBrightness(self.brightness_factor, value_range=[0.0, 1.0]),
         ])
 
-        aug_ds = ds.map(
-            lambda x,y: (augments(x, training=True), y), num_parallel_calls=tf.data.AUTOTUNE
+        ds = ds.map(
+            lambda x,y: (augments(x, training=True)), num_parallel_calls=tf.data.AUTOTUNE
+        )
+
+        # copy input as reconstruction label.
+        ds = ds.map(
+            lambda x: (x, x), num_parallel_calls=tf.data.AUTOTUNE
         )
 
         return ds.prefetch(buffer_size=tf.data.AUTOTUNE)
@@ -130,14 +135,14 @@ class Preprocessor:
 
 
 
-preprocessor = Preprocessor()
-train_ds, fine_ds, test_ds = preprocessor.get_dataset()
-
-train_ds = preprocessor.get_batch_dataset(train_ds)
-fine_ds = preprocessor.get_batch_dataset(fine_ds)
-test_ds = preprocessor.get_batch_dataset(test_ds)
-
-train_ds = preprocessor.data_augmentation(train_ds)
-
-img, label = next(iter(train_ds))
-print(img[0].shape)
+# preprocessor = Preprocessor("../data/mvtec", 16)
+# train_ds, fine_ds, test_ds = preprocessor.get_dataset()
+#
+# train_ds = preprocessor.get_batch_dataset(train_ds)
+# fine_ds = preprocessor.get_batch_dataset(fine_ds)
+# test_ds = preprocessor.get_batch_dataset(test_ds)
+#
+# train_ds = preprocessor.data_augmentation(train_ds)
+#
+# img, label = next(iter(train_ds))
+# print(img[0])

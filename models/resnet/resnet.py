@@ -52,7 +52,7 @@ class ResBlock(keras.Model):
 
 
 class ResNet18(keras.Model):
-    def __init__(self, output_dim=128):
+    def __init__(self):
         super().__init__()
         self.layer0 = keras.Sequential([
             layers.Conv2D(64, 7, 2, padding="same"),
@@ -94,7 +94,7 @@ class ResNet18(keras.Model):
 
 
 class ResNet34(keras.Model):
-    def __init__(self, output_dim=128):
+    def __init__(self):
         super().__init__()
         self.layer0 = keras.Sequential([
             layers.Conv2D(64, 7, 2, padding="same"),
@@ -191,7 +191,7 @@ class ResBottleneckBlock(keras.Model):
 
 
 class ResNet(keras.Model):
-    def __init__(self, repeat, outputs):
+    def __init__(self, repeat):
         super().__init__()
         self.layer0 = keras.Sequential([
             layers.Conv2D(64, 7, 2, padding="same"),
@@ -255,38 +255,35 @@ class ResNet152(ResNet):
         return super().call(x)
 
 
-def build_resnet(model: str, input_shape: Union[tuple, list], output_dim: int, get_map=True):
+def build_resnet(model: str, input_shape: Union[tuple, list]):
 
     model_type = ["resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]
     assert model in model_type, f"Specified model type doesn't exist. These types of resnet are available: {model_type}"
     assert len(input_shape) == 4, f"input_shape: {input_shape} is required to be a tuple or list of size 4 \n ex. [Batch, Height, Width, Channel]"
 
     if model == "resnet18":
-        resnet = ResNet18(output_dim)
+        resnet = ResNet18()
         resnet.build(input_shape=input_shape)
         resnet.summary()
 
     if model == "resnet34":
-        resnet = ResNet34(output_dim)
+        resnet = ResNet34()
         resnet.build(input_shape=input_shape)
         resnet.summary()
 
     if model == "resnet50":
-        resnet = ResNet50(output_dim)
+        resnet = ResNet50()
         resnet.build(input_shape=input_shape)
         resnet.summary()
 
     if model == "resnet101":
-        resnet = ResNet101(output_dim)
+        resnet = ResNet101()
         resnet.build(input_shape=input_shape)
         resnet.summary()
 
     if model == "resnet152":
-        resnet = ResNet152(output_dim)
+        resnet = ResNet152()
         resnet.build(input_shape=input_shape)
         resnet.summary()
 
-    if get_map:
-        return resnet
-    else:
-        return resnet
+    return resnet
