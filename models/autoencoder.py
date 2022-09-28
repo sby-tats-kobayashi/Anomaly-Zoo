@@ -50,6 +50,7 @@ class AutoEncoder:
             self.vmin = resnetCAE.VMIN
             self.vmax = resnetCAE.VMAX
             self.dynamic_range = resnetCAE.DYNAMIC_RANGE
+            print(self.dynamic_range)
 
         # Training hyperparameters
         self.early_stopping = config.EARLY_STOPPING  # patience
@@ -68,8 +69,9 @@ class AutoEncoder:
             self.loss_function = losses.l2_loss
 
         # set metrics to monitor training
-        if color_mode == "grayscale":
+        if color_mode == "gray":
             self.metrics = [metrics.ssim_metric(self.dynamic_range)]
+            print(self.metrics)
             self.hist_keys = ("loss", "val_loss", "ssim", "val_ssim")
         if color_mode == "rgb":
             self.metrics = [metrics.mssim_metric(self.dynamic_range)]
@@ -81,7 +83,7 @@ class AutoEncoder:
         # compile model
         self.model.compile(
             loss=self.loss_function,
-            optimizer="adam",
+            optimizer=tf.optimizers.Adam(),
             metrics=self.metrics
         )
 
@@ -96,6 +98,14 @@ class AutoEncoder:
             monitor="val_loss",
             patience=self.early_stopping,
             restore_best_weights=True
+        )
+
+        terminate_nan_cb = tf.keras.callbacks.TerminateOnNaN()
+
+        reduce_lr_cb = tf.keras.callbacks.ReduceLROnPlateau(
+            monitor='val_loss',
+            factor=0.2,
+            patience=5
         )
 
         # checkpoint_cb = keras.callbacks.ModelCheckpoint(
@@ -113,9 +123,9 @@ class AutoEncoder:
         self.hist = self.model.fit(
             x=self.train_data,
             batch_size=self.batch_size,
-            epochs=1,
+            epochs=100,
             verbose=self.verbose,
-            callbacks=[tensorboard_cb, early_stopping_cb],
+            callbacks=[tensorboard_cb, early_stopping_cb, reduce_lr_cb],
             validation_data=self.valid_data
         )
     def create_save_dir(self):
@@ -147,6 +157,7 @@ class AutoEncoder:
         # save model
         save_dir = os.path.join(self.save_dir, self.create_model_name())
         tf.saved_model.save(self.model, save_dir)
+        return save_dir
 
     def get_history_dict(self):
         hist_dict = dict((key, self.hist.history[key]) for key in self.hist_keys)

@@ -6,7 +6,7 @@ from models.resnet.encoder import Encoder
 import config
 
 # Preprocessing variables
-RESCALE = 1 / 255
+RESCALE = 1./255
 SHAPE = (256, 256)
 PREPROCESSING_FUNCTION = None
 PREPROCESSING = None

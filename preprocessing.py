@@ -68,7 +68,7 @@ class Preprocessor:
         print(f"The number of fine-tuning data: {self.fine_ds.cardinality().numpy()}")
         print(f"The number of test data: {self.test_ds.cardinality().numpy()}")
 
-    def get_train_dataset(self, val_split):
+    def get_train_dataset(self, val_split, color):
 
         assert self.train_ds, \
             "Maybe your dataset isn't loaded, Please add this line before call this function " \
@@ -77,6 +77,9 @@ class Preprocessor:
         # apply batch transform and data augmentation
         ds = self.get_batch_dataset(self.train_ds)
         ds = self.data_augmentation(ds)
+        if color == "gray":
+            ds = self.rgb_to_gray(ds)
+        ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
 
         # separates train and valid
         num_train_ds = int(len(ds) * val_split)
@@ -90,7 +93,11 @@ class Preprocessor:
         ds = ds.shuffle(buffer_size=1000)
         ds = self._convert_path_to_image(ds)
         ds = ds.batch(self.batch_size)
-        ds = ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+        return ds
+
+    def rgb_to_gray(self, ds):
+        rgb_to_gray = tf.image.rgb_to_grayscale
+        ds = ds.map(lambda x, y: (rgb_to_gray(x), rgb_to_gray(y)), num_parallel_calls=tf.data.AUTOTUNE)
         return ds
 
     def data_augmentation(self, ds):
@@ -110,7 +117,7 @@ class Preprocessor:
             lambda x: (x, x), num_parallel_calls=tf.data.AUTOTUNE
         )
 
-        return ds.prefetch(buffer_size=tf.data.AUTOTUNE)
+        return ds
 
     def _resize_and_rescale(self, ds):
         resize_and_rescale = tf.keras.Sequential([
@@ -151,7 +158,15 @@ class Preprocessor:
 
 # preprocessor = Preprocessor("./data/mvtec", 16)
 # preprocessor.load_dataset()
-# train_ds, valid_ds = preprocessor.get_train_dataset(0.1)
-#
-# img, label = next(iter(valid_ds))
+# train_ds, valid_ds = preprocessor.get_train_dataset(0.1, color="gray")
+
+
+# for batch in valid_ds.as_numpy_iterator():
+#     is_nan = np.any(np.isnan(batch))
+#     print(is_nan)
+#     print(np.min(batch), np.max(batch))
+# img, label = next(iter(train_ds))
 # print(img[0].shape, label[0].shape)
+# print(f"min: {tf.reduce_min(img[0])}")
+# print(f"max: {tf.reduce_min(img[0])}")
+

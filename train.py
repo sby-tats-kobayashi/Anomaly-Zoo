@@ -25,7 +25,7 @@ def main(args):
     # generate dataset
     preprocessor = Preprocessor(data_dir, batch_size)
     preprocessor.load_dataset()
-    train_ds, valid_ds = preprocessor.get_train_dataset(val_split)
+    train_ds, valid_ds = preprocessor.get_train_dataset(val_split, color_mode)
 
     # check arguments
     check_arguments(architecture, color_mode, loss)
@@ -38,13 +38,16 @@ def main(args):
     autoencoder.fit()
 
     # save model
-    autoencoder.save()
+    model_dir = autoencoder.save()
 
     if args.inspect:
 
+        # load best model
+        model = tf.saved_model.load(model_dir)
+
         # predict on sample batch
         sample_batch = next(iter(valid_ds))[0]
-        pred_out = autoencoder(sample_batch)
+        pred_out = model(sample_batch)
 
         # creates a file write for the log directory
         file_writer = tf.summary.create_file_writer(autoencoder.log_dir)
