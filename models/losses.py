@@ -6,9 +6,8 @@ import tensorflow.keras.backend as K
 
 def ssim_loss(dynamic_range):
     def loss(imgs_true, imgs_pred):
-        loss = K.mean(1 - tf.image.ssim(imgs_true, imgs_pred, dynamic_range))
-        print(tf.shape(loss))
-        return loss
+        return 1 - K.mean(tf.image.ssim(imgs_true, imgs_pred, dynamic_range), axis=-1)
+
     return loss
 
 
@@ -23,7 +22,7 @@ def ssim_loss(dynamic_range):
 #     return loss
 def mssim_loss(dynamic_range):
     def loss(imgs_true, imgs_pred):
-        return 1 - K.mean(tf.image.ssim(imgs_true, imgs_pred, dynamic_range), axis=-1)
+        return 1 - K.mean(tf.image.ssim_multiscale(imgs_true, imgs_pred, dynamic_range), axis=-1)
 
     return loss
 

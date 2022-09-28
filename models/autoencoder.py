@@ -71,7 +71,6 @@ class AutoEncoder:
         # set metrics to monitor training
         if color_mode == "gray":
             self.metrics = [metrics.ssim_metric(self.dynamic_range)]
-            print(self.metrics)
             self.hist_keys = ("loss", "val_loss", "ssim", "val_ssim")
         if color_mode == "rgb":
             self.metrics = [metrics.mssim_metric(self.dynamic_range)]
@@ -89,6 +88,13 @@ class AutoEncoder:
 
 
     def fit(self):
+
+        print("----test----")
+        pred_x = next(iter(self.train_data))[0]
+        true_x = next(iter(self.train_data))[0]
+        metric = self.metrics[0](pred_x, true_x)
+        print(metric)
+
         tensorboard_cb = keras.callbacks.TensorBoard(
             log_dir=self.log_dir, histogram_freq=1, write_graph=True,
             update_freq='epoch'
