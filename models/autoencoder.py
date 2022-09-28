@@ -113,7 +113,7 @@ class AutoEncoder:
         self.hist = self.model.fit(
             x=self.train_data,
             batch_size=self.batch_size,
-            epochs=10,
+            epochs=1,
             verbose=self.verbose,
             callbacks=[tensorboard_cb, early_stopping_cb],
             validation_data=self.valid_data
@@ -146,7 +146,7 @@ class AutoEncoder:
     def save(self):
         # save model
         save_dir = os.path.join(self.save_dir, self.create_model_name())
-        self.model.save(save_dir)
+        tf.saved_model.save(self.model, save_dir)
 
     def get_history_dict(self):
         hist_dict = dict((key, self.hist.history[key]) for key in self.hist_keys)
@@ -157,3 +157,8 @@ class AutoEncoder:
         best_epoch = int(np.argmin(np.array(hist_dict["val_loss"])))
         return best_epoch
 
+    def call(self, inputs):
+        return self.model(inputs)
+
+    def __call__(self, inputs):
+        return self.call(inputs)

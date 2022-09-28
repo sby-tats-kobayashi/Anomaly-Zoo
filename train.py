@@ -42,8 +42,19 @@ def main(args):
 
     if args.inspect:
 
-        sample_batch = valid_ds.take(1)
-        print(len(sample_batch))
+        # predict on sample batch
+        sample_batch = next(iter(valid_ds))[0]
+        pred_out = autoencoder(sample_batch)
+
+        # creates a file write for the log directory
+        file_writer = tf.summary.create_file_writer(autoencoder.log_dir)
+
+        # use the file writer, log the reshaped image.
+        with file_writer.as_default():
+            tf.summary.image("Input images", sample_batch, step=0)
+            tf.summary.image("Reconstructed images", pred_out, step=0)
+
+
 
 
 if __name__ == "__main__":
