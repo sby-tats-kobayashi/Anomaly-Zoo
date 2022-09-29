@@ -30,8 +30,7 @@ Requirements:
     test
     train.py
         save: implement save info
-    postprocessing 
-        tensorimages
+
         
         
         

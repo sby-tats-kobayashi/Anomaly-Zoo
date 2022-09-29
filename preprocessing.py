@@ -287,7 +287,7 @@ class Preprocessor:
     def get_number_test_images(self):
         return self.test_size
 
-    def ds_to_numpy(self, ds):
+    def ds_to_ndarray(self, ds):
         """This function process dataset to a batch dataset before convert dataset to numpy ndarray.
 
         Args:
@@ -314,12 +314,12 @@ nb_valid = preprocessor.get_number_valid_images()
 nb_test = preprocessor.get_number_test_images()
 
 valid_ds = preprocessor.get_valid_dataset(nb_valid, "gray")
-valid_input = preprocessor.ds_to_numpy(valid_ds)
-filenames_val = preprocessor.ds_to_numpy(preprocessor.valid_filename_ds)
+valid_input = preprocessor.ds_to_ndarray(valid_ds)
+filenames_val = preprocessor.ds_to_ndarray(preprocessor.valid_filename_ds)
 
 fine_ds = preprocessor.get_test_dataset(preprocessor.test_size, "rgb")
 fine_input = next(fine_ds.as_numpy_iterator())[0]
-filenames_test = preprocessor.ds_to_numpy(preprocessor.test_filename_ds)
+filenames_test = preprocessor.ds_to_ndarray(preprocessor.test_filename_ds)
 index_array = preprocessor.test_indices
 
 
@@ -327,7 +327,7 @@ print("end")
 
 from sklearn.model_selection import train_test_split
 classes = preprocessor.test_classes
-classes = preprocessor.ds_to_numpy(classes)
+classes = preprocessor.ds_to_ndarray(classes)
 _, idx_ft, _, classes_ft = train_test_split(index_array, classes, stratify=classes, test_size=preprocessor.val_split, random_state=42)
 
 y_ft_true = np.array(
