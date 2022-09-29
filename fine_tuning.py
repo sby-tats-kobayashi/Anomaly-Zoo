@@ -30,6 +30,8 @@ Requirements:
     test
     train.py
         save: implement save info
+    postprocessing 
+        tensorimages
         
         
         
@@ -106,3 +108,235 @@ def main(args):
     valid_ds =
 
     # retrieve preprocessed validation images
+    imgs_val_input = next(iter(valid_ds))[0]
+
+    # retrieve validation image names
+    filenames_val =
+
+    # reconstruct validation images
+    imgs_val_pred = model.predict(imgs_val_input)
+
+    # instantiate TensorImages object to compute validation
+    tensor_val = postprocessing.TensorImages(
+        imgs_input=imgs_val_input,
+        imgs_pred=imgs_val_pred,
+        vmin=vmin,
+        vmax=vmax,
+        method=method,
+        dtype=dtype,
+        filenames=filenames_val
+    )
+
+    # get finetuning dataset
+    finetuning_dataset = preprocessor.
+
+    # retrieve preprocessed test images
+    imgs_test_input = next(iter(finetuning_dataset))[0]
+    filenames_test =
+
+    # select a representative subset of test images for finetuning
+    # using stratified sampling
+    index_arr = finetuning_dataset.index_array
+
+    # get correct classes corresponding to selected images
+    y_ft_true =
+
+    # select test images for finetuning
+    imgs_ft_input =
+    filenames_ft =
+
+    # reconstruct finetuning images
+    imgs_ft_pred = model.predict(imgs_ft_input)
+
+    # instantiate TensorImages object to compute finetuning resamps
+    tensor_ft = postprocessing.TensorImages(
+        imgs_input=imgs_ft_input,
+        imgs_pred=imgs_ft_pred,
+        vmin=vmin,
+        vmax=vmax,
+        method=method,
+        dtype=dtype,
+        filenames=filenames_ft,
+    )
+
+    # instantiate finetuning dictionary
+    dict_finetune = {
+        "min_area": [],
+        "threshold": [],
+        "TPR": [],
+        "TNR": [],
+        "FPR": [],
+        "FNR": [],
+        "score": [],
+    }
+
+    # initialize discrete min_area values
+    min_areas = np.arange(
+        start=config.START_MIN_AREA,
+        stop=config.STOP_MIN_AREA,
+        step=config.STEP_MIN_AREA,
+    )
+
+    # initialize thresholds
+    thresholds = np.arange(
+        start=tensor_val.thresh_min,
+        stop=tensor_val.thresh_max + tensor_val.thresh_step,
+        step=tensor_val.thresh_step,
+    )
+
+    # compute the largest anomaly areas in resamps for increasing thresholds
+    print('step 1/2: computing the largest anomaly areas for increasing thresholds ...')
+    largest_areas = calculate_largest_areas(
+        resamps=tensor_val.resamps, thresholds=thresholds
+    )
+
+    # select the best minimum area and threshold pair to use for testing
+    print('step 2/2: selecting best minimum area and threshold pair for testing...')
+    printProgressBar(
+        0, len(min_areas), prefix="Progress:", suffix="Complete", length=80
+    )
+
+    for i, min_area in enumerate(min_areas):
+        # compare current min_area with the largest area
+        for idx, largest_area in enumerate(largest_areas):
+            if min_area > largest_area:
+                break
+        # select threshold corresponding to current min_area
+        threshold = thresholds[idx]
+
+        # apply the min_area, threshold pair to finetuning images
+        y_ft_pred = predict_classes(
+            resamps=tensor_ft.resamps, min_area=min_area, threshold=threshold
+        )
+
+        # confusion matrix
+        tnr, fpr, fnr, tpr = confusion_matrix(
+            y_ft_true, y_ft_pred, normalize="true"
+        ).ravel()
+
+        # record current results
+        dict_finetune["min_area"].append(min_area)
+        dict_finetune["threshold"].append(threshold)
+        dict_finetune["TPR"].append(tpr)
+        dict_finetune["TNR"].append(tnr)
+        dict_finetune["FPR"].append(fpr)
+        dict_finetune["FNR"].append(fnr)
+        dict_finetune["score"].append((tpr + tnr) / 2)
+
+        # print progress bar
+        printProgressBar(
+            i + 1, len(min_areas), prefix="Progress:", suffix="Complete", length=80
+        )
+
+        # get min_area, threshold pair corresponding to best score
+        max_score_i = np.argmax(dict_finetune["score"])
+        max_score = float(dict_finetune["score"][max_score_i])
+        best_min_area = int(dict_finetune["min_area"][max_score_i])
+        best_threshold = float(dict_finetune["threshold"][max_score_i])
+
+        # create a results directory if not existant
+        model_dir_name = os.path.basename(str(pathlib.Path(model_path).parent))
+
+        save_dir = os.path.join(
+            os.getcwd(),
+            "results",
+            input_directory,
+            architecture,
+            loss,
+            model_dir_name,
+            "finetuning",
+            "{}_{}".format(method, dtype),
+        )
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+
+        # save area and threshold pair
+        finetuning_result = {
+            "best_min_area": best_min_area,
+            "best_threshold": best_threshold,
+            "best_score": max_score,
+            "method": method,
+            "dtype": dtype,
+            "split": config.FINETUNE_SPLIT,
+        }
+        print("finetuning results: {}".format(finetuning_result))
+
+        # save validation result
+        with open(os.path.join(save_dir, "finetuning_result.json"), "w") as json_file:
+            json.dump(finetuning_result, json_file, indent=4, sort_keys=False)
+
+        # save finetuning plots
+        plot_min_area_threshold(dict_finetune, index_best=max_score_i, save_dir=save_dir)
+        plot_scores(dict_finetune, index_best=max_score_i, save_dir=save_dir)
+
+def plot_min_area_threshold(dict_finetune, index_best=None, save_dir=None):
+    df_finetune = pd.DataFrame.from_dict(dict_finetune)
+    with plt.style.context("seaborn-darkgrid"):
+        df_finetune.plot(x="min_area", y=["threshold"], figsize=(12, 8))
+        if index_best is not None:
+            x = dict_finetune["min_area"][index_best]
+            y = dict_finetune["threshold"][index_best]
+            plt.axvline(x, 0, y, linestyle="dashed", color="red", linewidth=0.5)
+            plt.axhline(y, 0, x, linestyle="dashed", color="red", linewidth=0.5)
+            label_marker = "best min_area / threshold pair"
+            plt.plot(x, y, markersize=10, marker="o", color="red", label=label_marker)
+        title = "Min_Area Threshold plot\nbest min_area = {}\nbest threshold = {:.4f}".format(
+            x, y
+        )
+        plt.title(title)
+        plt.show()
+    if save_dir is not None:
+        plt.savefig(os.path.join(save_dir, "min_area_threshold_plot.png"))
+        print("min_area threshold plot successfully saved at:\n {}".format(save_dir))
+        plt.close()
+    return
+
+def plot_scores(dict_finetune, index_best=None, save_dir=None):
+    df_finetune = pd.DataFrame.from_dict(dict_finetune)
+    with plt.style.context("seaborn-darkgrid"):
+        df_finetune.plot(x="min_area", y=["TPR", "TNR", "score"], figsize=(12, 8))
+        if index_best is not None:
+            x = dict_finetune["min_area"][index_best]
+            y = dict_finetune["score"][index_best]
+            plt.axvline(x, 0, 1, linestyle="dashed", color="red", linewidth=0.5)
+            plt.plot(x, y, markersize=10, marker="o", color="red", label="best score")
+        plt.title(f"Scores plot\nbest score = {y:.2E}")
+        plt.show()
+    if save_dir is not None:
+        plt.savefig(os.path.join(save_dir, "scores_plot.png"))
+        print("scores plot successfully saved at:\n {}".format(save_dir))
+        plt.close()
+
+if __name__ == "__main__":
+
+    # create parser
+    parser = argparse.ArgumentParser(
+        description="Determine good values for minimum area and threshold for classification."
+    )
+    parser.add_argument(
+        "-p", "--path", type=str, required=True, metavar="", help="path to saved model"
+    )
+
+    parser.add_argument(
+        "-m",
+        "--method",
+        required=False,
+        metavar="",
+        choices=["ssim", "l2"],
+        default="ssim",
+        help="method for generating resmaps: 'ssim' or 'l2'",
+    )
+
+    parser.add_argument(
+        "-t",
+        "--dtype",
+        required=False,
+        metavar="",
+        choices=["float64", "uint8"],
+        default="float64",
+        help="datatype for processing resmaps: 'float64' or 'uint8'",
+    )
+
+    args = parser.parse_args()
+
+    main(args)

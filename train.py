@@ -47,7 +47,7 @@ def main(args):
 
         # predict on sample batch
         sample_batch = next(iter(valid_ds))[0]
-        pred_out = model(sample_batch)
+        pred_out = model.predict(sample_batch)
 
         # creates a file write for the log directory
         file_writer = tf.summary.create_file_writer(autoencoder.log_dir)

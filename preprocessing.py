@@ -154,6 +154,33 @@ class Preprocessor:
         img = self._decode_img(img)
         return img, label
 
+    def get_valid_generator(self, batch_size, shuffle=True):
+        """Get validation dataset generator.
+
+        For training, pass autoencoder.batch_size as batch size.
+        For validation, pass nb_validation_images as batch size(equal to get all validation images as a batch).
+        For test, pass nb_test_images as batch size(equal to get all test images as a batch).
+
+        Returns:
+            validation_generator
+
+        """
+
+
+    def get_preprocessing_function(architecture):
+        """Get preprocessing function for passing certain architecture.
+
+        Args:
+            architecture(str): model architecture you want to use
+
+        Returns:
+            func: preprocessing function
+
+        """
+        if architecture in ['mvtecCAE', 'baselineCAE', 'inceptionCAE', 'resnetCAE']:
+            preprocessing_function = None
+        return preprocessing_function
+
 
 
 # preprocessor = Preprocessor("./data/mvtec", 16)
